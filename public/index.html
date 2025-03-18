@@ -106,6 +106,86 @@
             margin: 10px 0;
             font-weight: bold;
         }
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .login-form input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .login-form button {
+            margin-top: 10px;
+        }
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 15px;
+        }
+        .tab {
+            padding: 10px 15px;
+            cursor: pointer;
+            background: #f5f5f5;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+            margin-right: 5px;
+        }
+        .tab.active {
+            background: white;
+            border: 1px solid #ddd;
+            border-bottom: none;
+            font-weight: bold;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .leaderboard {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .leaderboard th, .leaderboard td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .leaderboard th {
+            background-color: #f5f5f5;
+        }
+        .player-id {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .connection-details {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .ping-info {
+            display: inline-block;
+            padding: 2px 5px;
+            border-radius: 3px;
+            margin-left: 5px;
+            font-size: 11px;
+        }
+        .ping-good {
+            background-color: #E8F5E9;
+            color: #4CAF50;
+        }
+        .ping-medium {
+            background-color: #FFF3E0;
+            color: #FF9800;
+        }
+        .ping-bad {
+            background-color: #FFEBEE;
+            color: #F44336;
+        }
     </style>
 </head>
 <body>
@@ -114,48 +194,104 @@
     <div class="container">
         <h2>连接状态</h2>
         <div id="connection-status" class="status disconnected">未连接</div>
+        <div id="connection-details" class="connection-details" style="display: none;">
+            <p><strong>连接ID:</strong> <span id="connection-id">-</span></p>
+            <p><strong>传输类型:</strong> <span id="transport-type">-</span></p>
+            <p><strong>延迟:</strong> <span id="ping-time">-</span> <span id="ping-quality" class="ping-info">-</span></p>
+            <p><strong>连接时间:</strong> <span id="connection-time">-</span></p>
+        </div>
         <button id="connect-button" class="join">连接服务器</button>
         <div id="error-message" class="error" style="display: none;"></div>
     </div>
     
-    <div class="container">
+    <div id="login-container" class="container" style="display: none;">
         <h2>玩家信息</h2>
-        <div class="player-info">
-            <div>
-                <p><strong>玩家ID:</strong> <span id="player-id">-</span></p>
-                <p><strong>当前分数:</strong> <span id="player-score">-</span></p>
-                <p><strong>当前回合:</strong> <span id="current-round">-</span></p>
-            </div>
-            <div>
-                <p><strong>对手ID:</strong> <span id="opponent-id">无对手</span></p>
-                <p><strong>对局状态:</strong> <span id="game-status">未开始</span></p>
-            </div>
-        </div>
-        
-        <div class="reward-info">
-            <p><strong>奖励机制:</strong></p>
-            <ul>
-                <li>双方合作各得: <span id="both-cooperate">-</span> 分</li>
-                <li>双方背叛各得: <span id="both-betray">-</span> 分</li>
-                <li>合作方失去: <span id="cooperate">-</span> 分</li>
-                <li>背叛方得到: <span id="betray">-</span> 分</li>
-            </ul>
+        <div class="login-form">
+            <input type="text" id="player-name-input" placeholder="请输入您的名称（最多20个字符）" maxlength="20">
+            <input type="text" id="player-id-input" placeholder="如需重连，请输入您的玩家ID（可留空）">
+            <button id="login-button" class="join">登录/注册</button>
         </div>
     </div>
     
-    <div class="container">
-        <h2>游戏操作</h2>
-        <button id="join-button" class="join" disabled>加入游戏</button>
-        
-        <div class="buttons">
-            <button id="cooperate-button" class="cooperate" disabled>选择合作</button>
-            <button id="betray-button" class="betray" disabled>选择背叛</button>
+    <div id="game-container" style="display: none;">
+        <div class="container">
+            <h2>玩家信息</h2>
+            <div class="player-info">
+                <div>
+                    <p><strong>玩家名称:</strong> <span id="player-name">-</span></p>
+                    <p class="player-id"><strong>ID:</strong> <span id="player-id">-</span></p>
+                    <p><strong>当前分数:</strong> <span id="player-score">-</span></p>
+                    <p><strong>当前回合:</strong> <span id="current-round">-</span></p>
+                    <p><strong>总游戏次数:</strong> <span id="total-games">-</span></p>
+                </div>
+                <div>
+                    <p><strong>对手名称:</strong> <span id="opponent-name">无对手</span></p>
+                    <p class="player-id"><strong>对手ID:</strong> <span id="opponent-id">-</span></p>
+                    <p><strong>对局状态:</strong> <span id="game-status">未开始</span></p>
+                </div>
+            </div>
+            
+            <div class="reward-info">
+                <p><strong>奖励机制:</strong></p>
+                <ul>
+                    <li>双方合作各得: <span id="both-cooperate">-</span> 分</li>
+                    <li>双方背叛各得: <span id="both-betray">-</span> 分</li>
+                    <li>合作方失去: <span id="cooperate">-</span> 分</li>
+                    <li>背叛方得到: <span id="betray">-</span> 分</li>
+                </ul>
+            </div>
         </div>
-    </div>
-    
-    <div class="container">
-        <h2>游戏历史</h2>
-        <div id="history" class="history"></div>
+        
+        <div class="container">
+            <div class="tabs">
+                <div class="tab active" data-tab="game-tab">游戏</div>
+                <div class="tab" data-tab="stats-tab">统计</div>
+                <div class="tab" data-tab="leaderboard-tab">排行榜</div>
+            </div>
+            
+            <div id="game-tab" class="tab-content active">
+                <h2>游戏操作</h2>
+                <button id="join-button" class="join">加入游戏</button>
+                
+                <div class="buttons">
+                    <button id="cooperate-button" class="cooperate" disabled>选择合作</button>
+                    <button id="betray-button" class="betray" disabled>选择背叛</button>
+                </div>
+                
+                <h2>游戏历史</h2>
+                <div id="history" class="history"></div>
+            </div>
+            
+            <div id="stats-tab" class="tab-content">
+                <h2>玩家统计</h2>
+                <button id="refresh-stats-button" class="join">刷新统计</button>
+                <div id="player-stats">
+                    <p>加载中...</p>
+                </div>
+            </div>
+            
+            <div id="leaderboard-tab" class="tab-content">
+                <h2>排行榜</h2>
+                <button id="refresh-leaderboard-button" class="join">刷新排行榜</button>
+                <div id="leaderboard-container">
+                    <table class="leaderboard">
+                        <thead>
+                            <tr>
+                                <th>排名</th>
+                                <th>玩家名称</th>
+                                <th>分数</th>
+                                <th>游戏次数</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboard-body">
+                            <tr>
+                                <td colspan="4">加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
     
     <script>
@@ -170,19 +306,86 @@
         const cooperateButton = document.getElementById('cooperate-button');
         const betrayButton = document.getElementById('betray-button');
         const connectionStatus = document.getElementById('connection-status');
+        const playerName = document.getElementById('player-name');
         const playerId = document.getElementById('player-id');
         const playerScore = document.getElementById('player-score');
         const currentRound = document.getElementById('current-round');
+        const totalGames = document.getElementById('total-games');
+        const opponentName = document.getElementById('opponent-name');
         const opponentId = document.getElementById('opponent-id');
         const gameStatus = document.getElementById('game-status');
         const historyContainer = document.getElementById('history');
         const errorMessage = document.getElementById('error-message');
+        
+        // 登录元素
+        const loginContainer = document.getElementById('login-container');
+        const gameContainer = document.getElementById('game-container');
+        const playerNameInput = document.getElementById('player-name-input');
+        const playerIdInput = document.getElementById('player-id-input');
+        const loginButton = document.getElementById('login-button');
+        
+        // 标签页元素
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const refreshStatsButton = document.getElementById('refresh-stats-button');
+        const refreshLeaderboardButton = document.getElementById('refresh-leaderboard-button');
+        const playerStatsContainer = document.getElementById('player-stats');
+        const leaderboardBody = document.getElementById('leaderboard-body');
         
         // 奖励机制元素
         const bothCooperateSpan = document.getElementById('both-cooperate');
         const bothBetraySpan = document.getElementById('both-betray');
         const cooperateSpan = document.getElementById('cooperate');
         const betraySpan = document.getElementById('betray');
+        
+        // WebSocket连接状态元素
+        const connectionDetails = document.getElementById('connection-details');
+        const connectionId = document.getElementById('connection-id');
+        const transportType = document.getElementById('transport-type');
+        const pingTime = document.getElementById('ping-time');
+        const pingQuality = document.getElementById('ping-quality');
+        const connectionTime = document.getElementById('connection-time');
+        
+        // WebSocket连接时间
+        let connectionStartTime = null;
+        let pingInterval = null;
+        
+        // 更新连接时间
+        function updateConnectionTime() {
+            if (!connectionStartTime) return;
+            
+            const now = new Date();
+            const diff = now - connectionStartTime;
+            const seconds = Math.floor(diff / 1000) % 60;
+            const minutes = Math.floor(diff / (1000 * 60)) % 60;
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            
+            connectionTime.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        // 测量WebSocket延迟
+        function measurePing() {
+            if (!socket || !socket.connected) return;
+            
+            const start = Date.now();
+            socket.emit('ping', null, () => {
+                const duration = Date.now() - start;
+                pingTime.textContent = `${duration}ms`;
+                
+                // 设置延迟质量指示
+                pingQuality.className = 'ping-info';
+                if (duration < 100) {
+                    pingQuality.classList.add('ping-good');
+                    pingQuality.textContent = '良好';
+                } else if (duration < 300) {
+                    pingQuality.classList.add('ping-medium');
+                    pingQuality.textContent = '一般';
+                } else {
+                    pingQuality.classList.add('ping-bad');
+                    pingQuality.textContent = '较差';
+                }
+            });
+        }
         
         // 显示错误信息
         function showError(message) {
@@ -201,41 +404,182 @@
             betrayButton.disabled = true;
         }
         
+        // 标签页切换
+        tabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                // 移除所有标签页的active类
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+                
+                // 给当前标签页添加active类
+                this.classList.add('active');
+                const tabId = this.getAttribute('data-tab');
+                document.getElementById(tabId).classList.add('active');
+                
+                // 如果切换到排行榜标签，自动刷新排行榜
+                if (tabId === 'leaderboard-tab' && socket && socket.connected) {
+                    socket.emit('getLeaderboard');
+                }
+                
+                // 如果切换到统计标签，自动刷新统计
+                if (tabId === 'stats-tab' && socket && socket.connected) {
+                    socket.emit('getPlayerStats');
+                }
+            });
+        });
+        
         // 连接服务器
         connectButton.addEventListener('click', function() {
             if (!socket) {
                 try {
-                    socket = io('http://localhost:3000');
+                    socket = io('http://localhost:3000', {
+                        transports: ['websocket'], // 强制使用WebSocket
+                        upgrade: false, // 禁止协议升级
+                        reconnectionAttempts: 5, // 重连次数
+                        timeout: 10000 // 连接超时时间
+                    });
                     
                     // 连接事件处理
                     socket.on('connect', function() {
                         connectionStatus.className = 'status connected';
-                        connectionStatus.textContent = '已连接';
+                        connectionStatus.textContent = '已连接 (WebSocket)';
                         connectButton.textContent = '断开连接';
-                        joinButton.disabled = false;
                         
-                        addHistoryItem('系统', '已连接到服务器');
+                        // 更新连接详情
+                        connectionDetails.style.display = 'block';
+                        connectionId.textContent = socket.id;
+                        transportType.textContent = socket.io.engine.transport.name;
+                        connectionStartTime = new Date();
+                        
+                        // 开始定时更新连接时间和测量延迟
+                        clearInterval(pingInterval);
+                        pingInterval = setInterval(() => {
+                            updateConnectionTime();
+                            measurePing();
+                        }, 1000);
+                        
+                        // 显示登录界面
+                        loginContainer.style.display = 'block';
+                        
+                        addHistoryItem('系统', '已通过WebSocket连接到服务器');
                     });
                     
-                    // 连接错误处理
+                    // WebSocket特定错误
                     socket.on('connect_error', function(error) {
-                        showError('连接服务器失败: ' + error.message);
-                        addHistoryItem('错误', '连接服务器失败');
+                        showError('WebSocket连接错误: ' + error.message);
+                        addHistoryItem('错误', 'WebSocket连接失败');
+                        
+                        // 尝试回退到HTTP轮询（仅用于开发测试，生产环境可以移除）
+                        if (socket.io.opts.transports.indexOf('polling') === -1) {
+                            addHistoryItem('系统', '尝试回退到HTTP轮询...');
+                            socket.io.opts.transports = ['polling', 'websocket'];
+                            socket.connect();
+                        }
                     });
                     
                     // 断开连接事件处理
-                    socket.on('disconnect', function() {
+                    socket.on('disconnect', function(reason) {
                         connectionStatus.className = 'status disconnected';
                         connectionStatus.textContent = '已断开连接';
                         connectButton.textContent = '连接服务器';
-                        joinButton.disabled = true;
                         resetGameButtons();
                         gameStatus.textContent = '未开始';
+                        
+                        // 清理连接状态
+                        connectionDetails.style.display = 'none';
+                        connectionStartTime = null;
+                        clearInterval(pingInterval);
+                        
+                        // 隐藏游戏界面
+                        loginContainer.style.display = 'none';
+                        gameContainer.style.display = 'none';
+                        
+                        // 记录断开原因
+                        const reasonMsg = {
+                            'io server disconnect': '服务器主动断开连接',
+                            'io client disconnect': '客户端主动断开连接',
+                            'ping timeout': '心跳检测超时',
+                            'transport close': '传输层关闭',
+                            'transport error': '传输层错误'
+                        }[reason] || `未知原因 (${reason})`;
+                        
+                        addHistoryItem('系统', `WebSocket连接断开: ${reasonMsg}`);
+                        
+                        // WebSocket特定的自动重连逻辑
+                        if (reason === 'ping timeout' || reason === 'transport error') {
+                            addHistoryItem('系统', '尝试重新连接...');
+                            
+                            // 仅当不是用户主动断开时才重连
+                            if (playerData) {
+                                setTimeout(() => {
+                                    if (!socket.connected) {
+                                        socket.connect();
+                                        
+                                        // 如果有存储的玩家ID，自动登录
+                                        socket.once('connect', () => {
+                                            const savedId = localStorage.getItem('playerId');
+                                            const savedName = localStorage.getItem('playerName');
+                                            
+                                            if (savedId && savedName) {
+                                                addHistoryItem('系统', '尝试使用已保存的ID自动登录...');
+                                                socket.emit('login', {
+                                                    playerName: savedName,
+                                                    playerId: savedId
+                                                });
+                                            }
+                                        });
+                                    }
+                                }, 3000);
+                            }
+                        }
+                        
                         playerData = null;
                         currentOpponent = null;
                         gameInProgress = false;
+                    });
+                    
+                    // 添加重连尝试事件
+                    socket.io.on('reconnect_attempt', (attempt) => {
+                        addHistoryItem('系统', `尝试第 ${attempt} 次重新连接...`);
+                    });
+                    
+                    socket.io.on('reconnect', () => {
+                        addHistoryItem('系统', '重新连接成功!');
+                    });
+                    
+                    socket.io.on('reconnect_error', (error) => {
+                        addHistoryItem('错误', `重新连接失败: ${error.message}`);
+                    });
+                    
+                    socket.io.on('reconnect_failed', () => {
+                        addHistoryItem('系统', '重新连接失败，已达到最大尝试次数');
+                        showError('重新连接失败，请手动刷新页面');
+                    });
+                    
+                    // 登录成功事件处理
+                    socket.on('loginSuccess', function(data) {
+                        playerData = data.playerData;
                         
-                        addHistoryItem('系统', '已断开服务器连接');
+                        // 更新玩家信息
+                        playerName.textContent = playerData.name;
+                        playerId.textContent = playerData.id;
+                        playerScore.textContent = playerData.score;
+                        currentRound.textContent = playerData.currentRound;
+                        totalGames.textContent = playerData.totalGames;
+                        
+                        // 保存玩家ID到localStorage
+                        localStorage.setItem('playerName', playerData.name);
+                        localStorage.setItem('playerId', playerData.id);
+                        
+                        // 显示游戏界面
+                        loginContainer.style.display = 'none';
+                        gameContainer.style.display = 'block';
+                        
+                        addHistoryItem('系统', data.isNewPlayer ? '注册成功，欢迎新玩家!' : '登录成功，欢迎回来!');
+                        
+                        // 获取排行榜和统计
+                        socket.emit('getLeaderboard');
+                        socket.emit('getPlayerStats');
                     });
                     
                     // 游戏加入确认事件处理
@@ -244,6 +588,7 @@
                         updatePlayerInfo();
                         updateRewardInfo(data.globalRewards);
                         
+                        joinButton.disabled = true;
                         gameStatus.textContent = '等待匹配';
                         addHistoryItem('系统', '已加入游戏，等待匹配对手');
                     });
@@ -254,11 +599,12 @@
                         gameInProgress = true;
                         
                         opponentId.textContent = currentOpponent;
+                        opponentName.textContent = data.opponentName || '未知对手';
                         gameStatus.textContent = '已匹配，请做出选择';
                         cooperateButton.disabled = false;
                         betrayButton.disabled = false;
                         
-                        addHistoryItem('系统', `已匹配到对手: ${currentOpponent}`);
+                        addHistoryItem('系统', `已匹配到对手: ${data.opponentName || '未知对手'}`);
                     });
                     
                     // 回合完成事件处理
@@ -270,12 +616,17 @@
                         gameStatus.textContent = '回合结束，等待匹配新对手';
                         resetGameButtons();
                         
-                        const roundResult = `回合结束: 你${data.score >= 0 ? '获得' : '失去'}了 ${Math.abs(data.score)} 分，对手选择了 ${data.opponentChoice === 'cooperate' ? '合作' : '背叛'}`;
+                        const roundResult = `回合结束: 你${data.score >= 0 ? '获得' : '失去'}了 ${Math.abs(data.score)} 分，对手 ${data.opponentName} 选择了 ${data.opponentChoice === 'cooperate' ? '合作' : '背叛'}`;
                         addHistoryItem('游戏', roundResult);
                         
                         // 重置对手
                         currentOpponent = null;
-                        opponentId.textContent = '等待匹配';
+                        opponentId.textContent = '-';
+                        opponentName.textContent = '等待匹配';
+                        
+                        // 刷新统计数据
+                        socket.emit('getPlayerStats');
+                        socket.emit('getLeaderboard');
                     });
                     
                     // 游戏结束事件处理
@@ -285,7 +636,11 @@
                         gameInProgress = false;
                         joinButton.disabled = false; // 允许重新加入
                         
-                        addHistoryItem('系统', `游戏结束，最终分数: ${data.finalScore}`);
+                        addHistoryItem('系统', `游戏结束，最终分数: ${data.finalScore}，总回合: ${data.rounds}，${data.message}`);
+                        
+                        // 刷新统计数据和排行榜
+                        socket.emit('getPlayerStats');
+                        socket.emit('getLeaderboard');
                     });
                     
                     // 对手断开连接事件处理
@@ -293,9 +648,20 @@
                         gameStatus.textContent = '等待匹配';
                         resetGameButtons();
                         currentOpponent = null;
-                        opponentId.textContent = '无对手';
+                        opponentId.textContent = '-';
+                        opponentName.textContent = '无对手';
                         
                         addHistoryItem('系统', data.message);
+                    });
+                    
+                    // 排行榜数据事件处理
+                    socket.on('leaderboardData', function(data) {
+                        updateLeaderboard(data.leaderboard);
+                    });
+                    
+                    // 玩家统计数据事件处理
+                    socket.on('playerStats', function(data) {
+                        updatePlayerStats(data.stats);
                     });
                     
                     // 错误事件处理
@@ -312,12 +678,37 @@
             }
         });
         
+        // 登录/注册
+        loginButton.addEventListener('click', function() {
+            if (socket && socket.connected) {
+                const name = playerNameInput.value.trim();
+                const id = playerIdInput.value.trim();
+                
+                if (!name) {
+                    showError('请输入玩家名称');
+                    return;
+                }
+                
+                socket.emit('login', {
+                    playerName: name,
+                    playerId: id || undefined
+                });
+            }
+        });
+        
         // 加入游戏
         joinButton.addEventListener('click', function() {
             if (socket && socket.connected) {
+                // 重置游戏状态
+                gameInProgress = false;
+                currentOpponent = null;
+                resetGameButtons();
+                
                 socket.emit('joinGame');
                 joinButton.disabled = true;
-                opponentId.textContent = '等待匹配';
+                opponentId.textContent = '-';
+                opponentName.textContent = '等待匹配';
+                gameStatus.textContent = '正在加入游戏...';
             }
         });
         
@@ -345,12 +736,28 @@
             }
         });
         
+        // 刷新统计
+        refreshStatsButton.addEventListener('click', function() {
+            if (socket && socket.connected) {
+                socket.emit('getPlayerStats');
+            }
+        });
+        
+        // 刷新排行榜
+        refreshLeaderboardButton.addEventListener('click', function() {
+            if (socket && socket.connected) {
+                socket.emit('getLeaderboard');
+            }
+        });
+        
         // 更新玩家信息
         function updatePlayerInfo() {
             if (playerData) {
+                playerName.textContent = playerData.name;
                 playerId.textContent = playerData.id;
                 playerScore.textContent = playerData.score;
                 currentRound.textContent = playerData.currentRound;
+                totalGames.textContent = playerData.totalGames;
             }
         }
         
@@ -364,6 +771,63 @@
             }
         }
         
+        // 更新排行榜
+        function updateLeaderboard(leaderboard) {
+            if (!leaderboard || !leaderboard.length) {
+                leaderboardBody.innerHTML = '<tr><td colspan="4">暂无数据</td></tr>';
+                return;
+            }
+            
+            let html = '';
+            leaderboard.forEach((player, index) => {
+                html += `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${player.name || '匿名玩家'} ${(player.id && playerData && player.id === playerData.id) ? '(你)' : ''}</td>
+                    <td>${player.score}</td>
+                    <td>${player.totalGames || 0}</td>
+                </tr>
+                `;
+            });
+            
+            leaderboardBody.innerHTML = html;
+        }
+        
+        // 更新玩家统计
+        function updatePlayerStats(stats) {
+            if (!stats) {
+                playerStatsContainer.innerHTML = '<p>暂无数据</p>';
+                return;
+            }
+            
+            // 计算合作率
+            const history = stats.history || [];
+            const cooperateCount = history.filter(c => c === 'cooperate').length;
+            const cooperateRate = history.length ? 
+                Math.round((cooperateCount / history.length) * 100) : 0;
+            
+            const html = `
+            <div>
+                <p><strong>玩家名称:</strong> ${stats.name || '匿名玩家'}</p>
+                <p><strong>ID:</strong> ${stats.id || '未知'}</p>
+                <p><strong>当前分数:</strong> ${stats.score || 0}</p>
+                <p><strong>游戏次数:</strong> ${stats.totalGames || 0}</p>
+                <p><strong>合作率:</strong> ${cooperateRate}% (${cooperateCount}/${history.length})</p>
+                <p><strong>最后在线:</strong> ${formatDate(stats.lastSeen)}</p>
+            </div>
+            `;
+            
+            playerStatsContainer.innerHTML = html;
+        }
+        
+        // 格式化日期
+        function formatDate(dateString) {
+            if (!dateString) return '未知';
+            
+            const date = new Date(dateString);
+            return date.toLocaleString();
+        }
+        
         // 添加历史记录
         function addHistoryItem(source, message) {
             const item = document.createElement('div');
@@ -372,6 +836,20 @@
             historyContainer.appendChild(item);
             historyContainer.scrollTop = historyContainer.scrollHeight;
         }
+        
+        // 从localStorage加载玩家信息
+        window.addEventListener('load', function() {
+            const savedName = localStorage.getItem('playerName');
+            const savedId = localStorage.getItem('playerId');
+            
+            if (savedName) {
+                playerNameInput.value = savedName;
+            }
+            
+            if (savedId) {
+                playerIdInput.value = savedId;
+            }
+        });
     </script>
 </body>
 </html> 
