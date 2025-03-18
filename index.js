@@ -250,14 +250,14 @@ io.on('connection', (socket) => {
       // 更新游戏总数
       player.totalGames++;
       
-      // // 重置游戏状态
+      // 重置游戏状态
       // player.currentRound = 0;
       // player.score = GAME_CONFIG.INITIAL_SCORE;
       // player.history = [];
       // player.currentChoice = null;
       
       // 更新Redis
-      // await updatePlayerRedisData(playerId, player);
+      await updatePlayerRedisData(playerId, player);
       
       // 发送游戏加入确认
       socket.emit('gameJoined', {
