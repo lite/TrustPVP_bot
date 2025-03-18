@@ -250,14 +250,14 @@ io.on('connection', (socket) => {
       // 更新游戏总数
       player.totalGames++;
       
-      // 重置游戏状态
-      player.currentRound = 0;
-      player.score = GAME_CONFIG.INITIAL_SCORE;
-      player.history = [];
-      player.currentChoice = null;
+      // // 重置游戏状态
+      // player.currentRound = 0;
+      // player.score = GAME_CONFIG.INITIAL_SCORE;
+      // player.history = [];
+      // player.currentChoice = null;
       
       // 更新Redis
-      await updatePlayerRedisData(playerId, player);
+      // await updatePlayerRedisData(playerId, player);
       
       // 发送游戏加入确认
       socket.emit('gameJoined', {
@@ -648,16 +648,16 @@ async function updatePlayerRedisData(playerId, player) {
       return;
     }
     
-    await redisClient.hSet(`player:${playerId}`, 
-      'id', player.id || playerId,
-      'name', player.name || '匿名玩家',
-      'score', String(player.score || GAME_CONFIG.INITIAL_SCORE),
-      'history', JSON.stringify(player.history || []),
-      'currentRound', String(player.currentRound || 0),
-      'currentChoice', player.currentChoice || '',
-      'totalGames', String(player.totalGames || 0),
-      'lastUpdated', new Date().toISOString()
-    );
+    await redisClient.hSet(`player:${playerId}`, {
+      'id': player.id || playerId,
+      'name': player.name || '匿名玩家',
+      'score': String(player.score || GAME_CONFIG.INITIAL_SCORE),
+      'history': JSON.stringify(player.history || []),
+      'currentRound': String(player.currentRound || 0),
+      'currentChoice': player.currentChoice || '',
+      'totalGames': String(player.totalGames || 0),
+      'lastUpdated': new Date().toISOString()
+    });
   } catch (err) {
     console.error(`更新Redis数据错误 (${playerId}):`, err);
   }
