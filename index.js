@@ -448,6 +448,7 @@ async function getTopPlayers(limit = 10) {
           id: playerData.id || playerId, // 优先使用存储的ID，否则使用key中的ID
           name: playerData.name,
           score: parseInt(playerData.score),
+          currentRound: parseInt(playerData.currentRound || '0'),
           totalGames: parseInt(playerData.totalGames || '0')
         });
       }
