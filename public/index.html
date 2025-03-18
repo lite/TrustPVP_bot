@@ -688,6 +688,7 @@
                     showError('请输入玩家名称');
                     return;
                 }
+                joinButton.disabled = false;
                 
                 socket.emit('login', {
                     playerName: name,
