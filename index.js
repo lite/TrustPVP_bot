@@ -539,13 +539,13 @@ function matchPlayers() {
       io.to(socket1Id).emit('matchFound', {
         opponent: player2Id,
         opponentName: player2.name,
-        opponentHistory: player2.history.slice(-100)
+        opponentHistory: player2.history.sort((a, b) => a.round - b.round).slice(-100).reverse()
       });
 
       io.to(socket2Id).emit('matchFound', {
         opponent: player1Id,
         opponentName: player1.name,
-        opponentHistory: player1.history.slice(-100)
+        opponentHistory: player1.history.sort((a, b) => a.round - b.round).slice(-100).reverse()
       });
 
       console.log(`匹配成功: ${player1.name} (${player1Id}) 和 ${player2.name} (${player2Id})`);
