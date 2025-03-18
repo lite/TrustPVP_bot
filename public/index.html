@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>信任演化博弈系统 - 测试客户端</title>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .cooperate {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .betray {
+            background-color: #F44336;
+            color: white;
+        }
+        .join {
+            background-color: #2196F3;
+            color: white;
+        }
+        button:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .connected {
+            background-color: #E8F5E9;
+            color: #4CAF50;
+        }
+        .disconnected {
+            background-color: #FFEBEE;
+            color: #F44336;
+        }
+        .history {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .history-item {
+            padding: 8px 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .history-item:last-child {
+            border-bottom: none;
+        }
+        .player-info {
+            display: flex;
+            justify-content: space-between;
+        }
+        .player-info div {
+            flex: 1;
+        }
+        .reward-info {
+            background: #E3F2FD;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .error {
+            background-color: #FFEBEE;
+            color: #D32F2F;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>信任演化博弈系统 - 测试客户端</h1>
+    
+    <div class="container">
+        <h2>连接状态</h2>
+        <div id="connection-status" class="status disconnected">未连接</div>
+        <button id="connect-button" class="join">连接服务器</button>
+        <div id="error-message" class="error" style="display: none;"></div>
+    </div>
+    
+    <div class="container">
+        <h2>玩家信息</h2>
+        <div class="player-info">
+            <div>
+                <p><strong>玩家ID:</strong> <span id="player-id">-</span></p>
+                <p><strong>当前分数:</strong> <span id="player-score">-</span></p>
+                <p><strong>当前回合:</strong> <span id="current-round">-</span></p>
+            </div>
+            <div>
+                <p><strong>对手ID:</strong> <span id="opponent-id">无对手</span></p>
+                <p><strong>对局状态:</strong> <span id="game-status">未开始</span></p>
+            </div>
+        </div>
+        
+        <div class="reward-info">
+            <p><strong>奖励机制:</strong></p>
+            <ul>
+                <li>双方合作各得: <span id="both-cooperate">-</span> 分</li>
+                <li>双方背叛各得: <span id="both-betray">-</span> 分</li>
+                <li>合作方失去: <span id="cooperate">-</span> 分</li>
+                <li>背叛方得到: <span id="betray">-</span> 分</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>游戏操作</h2>
+        <button id="join-button" class="join" disabled>加入游戏</button>
+        
+        <div class="buttons">
+            <button id="cooperate-button" class="cooperate" disabled>选择合作</button>
+            <button id="betray-button" class="betray" disabled>选择背叛</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>游戏历史</h2>
+        <div id="history" class="history"></div>
+    </div>
+    
+    <script>
+        let socket;
+        let playerData = null;
+        let currentOpponent = null;
+        let gameInProgress = false;
+        
+        // DOM 元素
+        const connectButton = document.getElementById('connect-button');
+        const joinButton = document.getElementById('join-button');
+        const cooperateButton = document.getElementById('cooperate-button');
+        const betrayButton = document.getElementById('betray-button');
+        const connectionStatus = document.getElementById('connection-status');
+        const playerId = document.getElementById('player-id');
+        const playerScore = document.getElementById('player-score');
+        const currentRound = document.getElementById('current-round');
+        const opponentId = document.getElementById('opponent-id');
+        const gameStatus = document.getElementById('game-status');
+        const historyContainer = document.getElementById('history');
+        const errorMessage = document.getElementById('error-message');
+        
+        // 奖励机制元素
+        const bothCooperateSpan = document.getElementById('both-cooperate');
+        const bothBetraySpan = document.getElementById('both-betray');
+        const cooperateSpan = document.getElementById('cooperate');
+        const betraySpan = document.getElementById('betray');
+        
+        // 显示错误信息
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            
+            // 5秒后自动隐藏
+            setTimeout(() => {
+                errorMessage.style.display = 'none';
+            }, 5000);
+        }
+        
+        // 重置游戏按钮状态
+        function resetGameButtons() {
+            cooperateButton.disabled = true;
+            betrayButton.disabled = true;
+        }
+        
+        // 连接服务器
+        connectButton.addEventListener('click', function() {
+            if (!socket) {
+                try {
+                    socket = io('http://localhost:3000');
+                    
+                    // 连接事件处理
+                    socket.on('connect', function() {
+                        connectionStatus.className = 'status connected';
+                        connectionStatus.textContent = '已连接';
+                        connectButton.textContent = '断开连接';
+                        joinButton.disabled = false;
+                        
+                        addHistoryItem('系统', '已连接到服务器');
+                    });
+                    
+                    // 连接错误处理
+                    socket.on('connect_error', function(error) {
+                        showError('连接服务器失败: ' + error.message);
+                        addHistoryItem('错误', '连接服务器失败');
+                    });
+                    
+                    // 断开连接事件处理
+                    socket.on('disconnect', function() {
+                        connectionStatus.className = 'status disconnected';
+                        connectionStatus.textContent = '已断开连接';
+                        connectButton.textContent = '连接服务器';
+                        joinButton.disabled = true;
+                        resetGameButtons();
+                        gameStatus.textContent = '未开始';
+                        playerData = null;
+                        currentOpponent = null;
+                        gameInProgress = false;
+                        
+                        addHistoryItem('系统', '已断开服务器连接');
+                    });
+                    
+                    // 游戏加入确认事件处理
+                    socket.on('gameJoined', function(data) {
+                        playerData = data.playerData;
+                        updatePlayerInfo();
+                        updateRewardInfo(data.globalRewards);
+                        
+                        gameStatus.textContent = '等待匹配';
+                        addHistoryItem('系统', '已加入游戏，等待匹配对手');
+                    });
+                    
+                    // 匹配成功事件处理
+                    socket.on('matchFound', function(data) {
+                        currentOpponent = data.opponent;
+                        gameInProgress = true;
+                        
+                        opponentId.textContent = currentOpponent;
+                        gameStatus.textContent = '已匹配，请做出选择';
+                        cooperateButton.disabled = false;
+                        betrayButton.disabled = false;
+                        
+                        addHistoryItem('系统', `已匹配到对手: ${currentOpponent}`);
+                    });
+                    
+                    // 回合完成事件处理
+                    socket.on('roundComplete', function(data) {
+                        playerData.score = data.totalScore;
+                        playerData.currentRound++;
+                        
+                        updatePlayerInfo();
+                        gameStatus.textContent = '回合结束，等待匹配新对手';
+                        resetGameButtons();
+                        
+                        const roundResult = `回合结束: 你${data.score >= 0 ? '获得' : '失去'}了 ${Math.abs(data.score)} 分，对手选择了 ${data.opponentChoice === 'cooperate' ? '合作' : '背叛'}`;
+                        addHistoryItem('游戏', roundResult);
+                        
+                        // 重置对手
+                        currentOpponent = null;
+                        opponentId.textContent = '等待匹配';
+                    });
+                    
+                    // 游戏结束事件处理
+                    socket.on('gameEnd', function(data) {
+                        gameStatus.textContent = '游戏结束';
+                        resetGameButtons();
+                        gameInProgress = false;
+                        joinButton.disabled = false; // 允许重新加入
+                        
+                        addHistoryItem('系统', `游戏结束，最终分数: ${data.finalScore}`);
+                    });
+                    
+                    // 对手断开连接事件处理
+                    socket.on('opponentDisconnected', function(data) {
+                        gameStatus.textContent = '等待匹配';
+                        resetGameButtons();
+                        currentOpponent = null;
+                        opponentId.textContent = '无对手';
+                        
+                        addHistoryItem('系统', data.message);
+                    });
+                    
+                    // 错误事件处理
+                    socket.on('error', function(data) {
+                        showError(data.message);
+                        addHistoryItem('错误', data.message);
+                    });
+                } catch (error) {
+                    showError('初始化Socket连接失败: ' + error.message);
+                }
+            } else {
+                socket.disconnect();
+                socket = null;
+            }
+        });
+        
+        // 加入游戏
+        joinButton.addEventListener('click', function() {
+            if (socket && socket.connected) {
+                socket.emit('joinGame');
+                joinButton.disabled = true;
+                opponentId.textContent = '等待匹配';
+            }
+        });
+        
+        // 选择合作
+        cooperateButton.addEventListener('click', function() {
+            if (socket && gameInProgress) {
+                socket.emit('makeChoice', 'cooperate');
+                cooperateButton.disabled = true;
+                betrayButton.disabled = true;
+                gameStatus.textContent = '已选择合作，等待结果';
+                
+                addHistoryItem('玩家', '你选择了合作');
+            }
+        });
+        
+        // 选择背叛
+        betrayButton.addEventListener('click', function() {
+            if (socket && gameInProgress) {
+                socket.emit('makeChoice', 'betray');
+                cooperateButton.disabled = true;
+                betrayButton.disabled = true;
+                gameStatus.textContent = '已选择背叛，等待结果';
+                
+                addHistoryItem('玩家', '你选择了背叛');
+            }
+        });
+        
+        // 更新玩家信息
+        function updatePlayerInfo() {
+            if (playerData) {
+                playerId.textContent = playerData.id;
+                playerScore.textContent = playerData.score;
+                currentRound.textContent = playerData.currentRound;
+            }
+        }
+        
+        // 更新奖励信息
+        function updateRewardInfo(rewards) {
+            if (rewards) {
+                bothCooperateSpan.textContent = rewards.bothCooperate;
+                bothBetraySpan.textContent = rewards.bothBetray;
+                cooperateSpan.textContent = rewards.cooperate;
+                betraySpan.textContent = rewards.betray;
+            }
+        }
+        
+        // 添加历史记录
+        function addHistoryItem(source, message) {
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            item.innerHTML = `<strong>${source}:</strong> ${message}`;
+            historyContainer.appendChild(item);
+            historyContainer.scrollTop = historyContainer.scrollHeight;
+        }
+    </script>
+</body>
+</html> 
