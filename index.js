@@ -126,21 +126,21 @@ io.on('connection', (socket) => {
     try {
       let playerId = data.playerId;
       const playerName = data.playerName || '匿名玩家';
-      
+
       // 验证玩家名称
       if (playerName.length > 20) {
         socket.emit('error', { message: '玩家名称不能超过20个字符' });
         return;
       }
-      
+
       let playerData;
       let isNewPlayer = false;
-      
+
       // 检查是否是现有玩家
       if (playerId && await redisClient.exists(`player:${playerId}`)) {
         // 加载现有玩家数据
         const redisData = await redisClient.hGetAll(`player:${playerId}`);
-        
+
         // 重建玩家数据
         playerData = {
           id: playerId,
@@ -151,7 +151,7 @@ io.on('connection', (socket) => {
           currentChoice: redisData.currentChoice || null,
           totalGames: parseInt(redisData.totalGames || 0)
         };
-        
+
         console.log(`现有玩家登录: ${playerName} (ID: ${playerId})`);
       } else {
         // 创建新玩家
@@ -165,19 +165,19 @@ io.on('connection', (socket) => {
           currentChoice: null,
           totalGames: 0
         };
-        
+
         isNewPlayer = true;
         console.log(`新玩家注册: ${playerName} (ID: ${playerId})`);
       }
-      
+
       // 建立socket.id到playerId的映射
       gameState.socketToPlayerId.set(socket.id, playerId);
-      
+
       // 存储玩家数据到内存
       gameState.players.set(playerId, playerData);
-      
+
       // 更新Redis中的数据
-      await redisClient.hSet(`player:${playerId}`, 
+      await redisClient.hSet(`player:${playerId}`,
         'id', playerData.id,
         'name', playerData.name,
         'score', String(playerData.score),
@@ -187,13 +187,13 @@ io.on('connection', (socket) => {
         'totalGames', String(playerData.totalGames),
         'lastSeen', new Date().toISOString()
       );
-      
+
       // 发送登录确认
       socket.emit('loginSuccess', {
         playerData,
         isNewPlayer
       });
-      
+
       console.log(`玩家 ${playerName} (ID: ${playerId}) 登录成功`);
     } catch (err) {
       console.error('登录错误:', err);
@@ -210,7 +210,7 @@ io.on('connection', (socket) => {
         socket.emit('error', { message: '请先登录' });
         return;
       }
-      
+
       // 获取玩家数据
       let player = gameState.players.get(playerId);
       if (!player) {
@@ -220,7 +220,7 @@ io.on('connection', (socket) => {
           socket.emit('error', { message: '玩家数据丢失，请重新登录' });
           return;
         }
-        
+
         const redisData = await redisClient.hGetAll(`player:${playerId}`);
         player = {
           id: playerId,
@@ -231,44 +231,44 @@ io.on('connection', (socket) => {
           currentChoice: redisData.currentChoice || null,
           totalGames: parseInt(redisData.totalGames || 0)
         };
-        
+
         gameState.players.set(playerId, player);
       }
-      
+
       // 检查玩家是否已在游戏中
       if (gameState.waitingPlayers.has(playerId)) {
         socket.emit('error', { message: '您已在等待队列中' });
         return;
       }
-      
+
       // 检查玩家是否已被匹配
       if (gameState.matches.has(playerId)) {
         socket.emit('error', { message: '您已在游戏中，请先完成当前回合' });
         return;
       }
-      
+
       // 更新游戏总数
       player.totalGames++;
-      
+
       // 重置游戏状态
       // player.currentRound = 0;
       // player.score = GAME_CONFIG.INITIAL_SCORE;
       // player.history = [];
       // player.currentChoice = null;
-      
+
       // 更新Redis
       await updatePlayerRedisData(playerId, player);
-      
+
       // 发送游戏加入确认
       socket.emit('gameJoined', {
         playerData: player,
         globalRewards: gameState.globalRewards
       });
-      
+
       // 添加到等待队列
       gameState.waitingPlayers.add(playerId);
       console.log(`玩家 ${player.name} (ID: ${playerId}) 加入等待队列，当前等待玩家数: ${gameState.waitingPlayers.size}`);
-      
+
       // 尝试匹配玩家
       matchPlayers();
     } catch (err) {
@@ -285,7 +285,7 @@ io.on('connection', (socket) => {
         socket.emit('error', { message: '无效选择' });
         return;
       }
-      
+
       // 获取玩家ID
       const playerId = gameState.socketToPlayerId.get(socket.id);
       if (!playerId) {
@@ -308,7 +308,13 @@ io.on('connection', (socket) => {
 
       // 更新选择
       player.currentChoice = choice;
-      player.history.push(choice);
+      player.history.push({
+        round: player.currentRound,
+        choice: choice,
+        score: player.score,
+        timestamp: new Date().toISOString(),
+        rewards: { ...gameState.globalRewards }
+      });
       if (player.history.length > GAME_CONFIG.HISTORY_LIMIT) {
         player.history.shift();
       }
@@ -331,9 +337,9 @@ io.on('connection', (socket) => {
     try {
       const playerId = gameState.socketToPlayerId.get(socket.id);
       if (!playerId) return;
-      
+
       console.log(`玩家 ID: ${playerId} 断开连接`);
-      
+
       // 处理匹配关系
       const opponentId = findOpponent(playerId);
       if (opponentId) {
@@ -341,19 +347,19 @@ io.on('connection', (socket) => {
         if (opponent) {
           // 获取对手的socket连接
           const opponentSocketId = findSocketByPlayerId(opponentId);
-          
+
           if (opponentSocketId) {
             // 通知对手断开连接
             io.to(opponentSocketId).emit('opponentDisconnected', {
               message: '对手已断开连接，请等待新匹配'
             });
           }
-          
+
           // 将对手放回等待队列
           gameState.matches.delete(playerId);
           gameState.matches.delete(opponentId);
           gameState.waitingPlayers.add(opponentId);
-          
+
           // 尝试重新匹配
           matchPlayers();
         }
@@ -363,7 +369,7 @@ io.on('connection', (socket) => {
       gameState.socketToPlayerId.delete(socket.id);
       gameState.waitingPlayers.delete(playerId);
       gameState.matches.delete(playerId);
-      
+
       // 记录最后在线时间，但保留玩家数据
       const player = gameState.players.get(playerId);
       if (player) {
@@ -372,21 +378,21 @@ io.on('connection', (socket) => {
           ...player,
           lastSeen: new Date().toISOString()
         }).catch(err => console.error('断开连接保存数据错误:', err));
-        
+
         gameState.players.delete(playerId);
       }
     } catch (err) {
       console.error('断开连接处理错误:', err);
     }
   });
-  
+
   // ping/pong 处理器，用于测量延迟
   socket.on('ping', (_, callback) => {
     if (callback && typeof callback === 'function') {
       callback();
     }
   });
-  
+
   // 获取排行榜
   socket.on('getLeaderboard', async () => {
     try {
@@ -397,7 +403,7 @@ io.on('connection', (socket) => {
       socket.emit('error', { message: '获取排行榜失败' });
     }
   });
-  
+
   // 获取玩家历史数据
   socket.on('getPlayerStats', async () => {
     try {
@@ -406,7 +412,7 @@ io.on('connection', (socket) => {
         socket.emit('error', { message: '请先登录' });
         return;
       }
-      
+
       const stats = await getPlayerStats(playerId);
       socket.emit('playerStats', { stats });
     } catch (err) {
@@ -435,9 +441,9 @@ async function getTopPlayers(limit = 10) {
     // 获取所有玩家ID
     const keys = await redisClient.keys('player:*');
     if (!keys.length) return [];
-    
+
     const players = [];
-    
+
     // 获取每个玩家的数据
     for (const key of keys) {
       const playerData = await redisClient.hGetAll(key);
@@ -453,10 +459,10 @@ async function getTopPlayers(limit = 10) {
         });
       }
     }
-    
+
     // 按分数排序
     players.sort((a, b) => b.score - a.score);
-    
+
     // 返回前N名
     return players.slice(0, limit);
   } catch (err) {
@@ -471,7 +477,7 @@ async function getPlayerStats(playerId) {
     if (!await redisClient.exists(`player:${playerId}`)) {
       return null;
     }
-    
+
     const data = await redisClient.hGetAll(`player:${playerId}`);
     return {
       id: data.id,
@@ -494,11 +500,11 @@ function matchPlayers() {
   if (waitingPlayers.length >= 2) {
     const player1Id = waitingPlayers[0];
     const player2Id = waitingPlayers[1];
-    
+
     // 确保两个玩家都存在
     const player1 = gameState.players.get(player1Id);
     const player2 = gameState.players.get(player2Id);
-    
+
     if (!player1 || !player2) {
       // 清理无效玩家
       if (!player1) {
@@ -511,35 +517,37 @@ function matchPlayers() {
       }
       return;
     }
-    
+
     // 从等待队列中移除
     gameState.waitingPlayers.delete(player1Id);
     gameState.waitingPlayers.delete(player2Id);
-    
+
     // 建立匹配关系
     gameState.matches.set(player1Id, player2Id);
     gameState.matches.set(player2Id, player1Id);
-    
+
     // 重置选择
     player1.currentChoice = null;
     player2.currentChoice = null;
-    
+
     // 获取socket连接
     const socket1Id = findSocketByPlayerId(player1Id);
     const socket2Id = findSocketByPlayerId(player2Id);
-    
+
     if (socket1Id && socket2Id) {
       // 通知玩家匹配成功
-      io.to(socket1Id).emit('matchFound', { 
+      io.to(socket1Id).emit('matchFound', {
         opponent: player2Id,
-        opponentName: player2.name
+        opponentName: player2.name,
+        opponentHistory: player2.history.slice(-100)
       });
-      
-      io.to(socket2Id).emit('matchFound', { 
+
+      io.to(socket2Id).emit('matchFound', {
         opponent: player1Id,
-        opponentName: player1.name
+        opponentName: player1.name,
+        opponentHistory: player1.history.slice(-100)
       });
-      
+
       console.log(`匹配成功: ${player1.name} (${player1Id}) 和 ${player2.name} (${player2Id})`);
     } else {
       // 处理无效socket
@@ -549,14 +557,14 @@ function matchPlayers() {
         gameState.waitingPlayers.add(player2Id);
         console.log(`玩家 ${player1Id} 没有有效的socket连接`);
       }
-      
+
       if (!socket2Id) {
         gameState.matches.delete(player1Id);
         gameState.matches.delete(player2Id);
         gameState.waitingPlayers.add(player1Id);
         console.log(`玩家 ${player2Id} 没有有效的socket连接`);
       }
-      
+
       // 继续尝试匹配
       matchPlayers();
     }
@@ -567,35 +575,35 @@ function matchPlayers() {
 function checkMatchCompletion(player1Id, player2Id) {
   const player1 = gameState.players.get(player1Id);
   const player2 = gameState.players.get(player2Id);
-  
+
   if (!player1 || !player2) {
     console.log('回合检查: 部分玩家不存在');
     return;
   }
-  
+
   // 检查两位玩家是否都已做出选择
   if (player1.currentChoice && player2.currentChoice) {
     console.log(`回合完成: ${player1.name} (${player1Id}) 选择了 ${player1.currentChoice}, ${player2.name} (${player2Id}) 选择了 ${player2.currentChoice}`);
-    
+
     // 计算得分
     const scores = calculateScores(player1.currentChoice, player2.currentChoice);
-    
+
     // 更新玩家分数
     player1.score += scores.player1;
     player2.score += scores.player2;
-    
+
     // 更新轮次
     player1.currentRound++;
     player2.currentRound++;
-    
+
     // 更新Redis
     updatePlayerRedisData(player1Id, player1);
     updatePlayerRedisData(player2Id, player2);
-    
+
     // 获取socket连接
     const socket1Id = findSocketByPlayerId(player1Id);
     const socket2Id = findSocketByPlayerId(player2Id);
-    
+
     if (socket1Id) {
       // 发送结果
       io.to(socket1Id).emit('roundComplete', {
@@ -605,7 +613,7 @@ function checkMatchCompletion(player1Id, player2Id) {
         opponentName: player2.name
       });
     }
-    
+
     if (socket2Id) {
       io.to(socket2Id).emit('roundComplete', {
         score: scores.player2,
@@ -614,28 +622,28 @@ function checkMatchCompletion(player1Id, player2Id) {
         opponentName: player1.name
       });
     }
-    
+
     // 重置选择
     player1.currentChoice = null;
     player2.currentChoice = null;
-    
+
     // 检查游戏是否结束
     const player1Ended = checkGameEnd(player1Id);
     const player2Ended = checkGameEnd(player2Id);
-    
+
     // 处理匹配关系
     gameState.matches.delete(player1Id);
     gameState.matches.delete(player2Id);
-    
+
     // 如果游戏没有结束，重新将玩家加入匹配队列
     if (!player1Ended && gameState.players.has(player1Id)) {
       gameState.waitingPlayers.add(player1Id);
     }
-    
+
     if (!player2Ended && gameState.players.has(player2Id)) {
       gameState.waitingPlayers.add(player2Id);
     }
-    
+
     // 尝试匹配新一轮
     matchPlayers();
   }
@@ -648,7 +656,7 @@ async function updatePlayerRedisData(playerId, player) {
       console.error('更新Redis数据错误: 无效的玩家数据');
       return;
     }
-    
+
     await redisClient.hSet(`player:${playerId}`, {
       'id': player.id || playerId,
       'name': player.name || '匿名玩家',
@@ -667,7 +675,7 @@ async function updatePlayerRedisData(playerId, player) {
 // 计算得分
 function calculateScores(choice1, choice2) {
   const { bothCooperate, bothBetray, cooperate, betray } = gameState.globalRewards;
-  
+
   if (choice1 === 'cooperate' && choice2 === 'cooperate') {
     return { player1: bothCooperate, player2: bothCooperate };
   } else if (choice1 === 'betray' && choice2 === 'betray') {
@@ -683,40 +691,40 @@ function calculateScores(choice1, choice2) {
 function checkGameEnd(playerId) {
   const player = gameState.players.get(playerId);
   if (!player) return true;
-  
-  if (player.score <= GAME_CONFIG.MIN_SCORE || 
-      player.currentRound >= GAME_CONFIG.MAX_ROUNDS) {
-    
+
+  if (player.score <= GAME_CONFIG.MIN_SCORE ||
+    player.currentRound >= GAME_CONFIG.MAX_ROUNDS) {
+
     // 获取socket连接
     const socketId = findSocketByPlayerId(playerId);
-    
+
     if (socketId) {
       // 通知玩家游戏结束
       io.to(socketId).emit('gameEnd', {
         finalScore: player.score,
         history: player.history,
         rounds: player.currentRound,
-        message: player.score <= GAME_CONFIG.MIN_SCORE ? 
+        message: player.score <= GAME_CONFIG.MIN_SCORE ?
           '您的分数已耗尽' : '您已完成最大回合数'
       });
     }
-    
+
     // 更新玩家数据和Redis，但不删除玩家数据
     player.currentRound = 0;
     player.history = [];
     player.currentChoice = null;
-    
+
     // 最终分数保持不变，确保保存到Redis
     updatePlayerRedisData(playerId, player);
-    
+
     // 清理匹配状态
     gameState.waitingPlayers.delete(playerId);
     gameState.matches.delete(playerId);
-    
+
     console.log(`游戏结束: ${player.name} (${playerId}), 得分: ${player.score}, 回合数: ${player.currentRound}`);
     return true;
   }
-  
+
   return false;
 }
 
