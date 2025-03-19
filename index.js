@@ -33,7 +33,7 @@ const redisClient = Redis.createClient({
 
 // 游戏配置
 const GAME_CONFIG = {
-  INITIAL_SCORE: 1000,
+  INITIAL_SCORE: 20,
   MAX_ROUNDS: 100 * 365,
   HISTORY_LIMIT: 100 * 365,
   MIN_SCORE: 0,
