@@ -433,14 +433,14 @@ io.on('connection', (socket) => {
 
 function updateGlobalRewards() {
   gameState.temperature += (Math.random() - 0.5) * 2;
-  gameState.temperature = Math.max(Math.min(gameState.temperature, 3), -2);
+  gameState.temperature = Math.max(Math.min(gameState.temperature, 2), -1);
   // 根据温度调整奖励值
   const tempFactor = Math.round(gameState.temperature * 10) / 10; // 取小数点后一位
   gameState.temperature = tempFactor;
-  gameState.globalRewards.cooperate = Math.round((-1 + tempFactor));
-  gameState.globalRewards.betray = Math.round((3 + tempFactor));
-  gameState.globalRewards.bothCooperate = Math.round((2 + tempFactor));
-  gameState.globalRewards.bothBetray = Math.round((0 + tempFactor));
+  gameState.globalRewards.cooperate = Math.round((-1 + tempFactor * Math.random()));
+  gameState.globalRewards.betray = Math.round((3 + tempFactor * Math.random()));
+  gameState.globalRewards.bothCooperate = Math.round((2 + tempFactor * Math.random()));
+  gameState.globalRewards.bothBetray = Math.round((0 + tempFactor * Math.random()));
 
 
 }
