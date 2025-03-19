@@ -34,8 +34,7 @@ const redisClient = Redis.createClient({
 // 游戏配置
 const GAME_CONFIG = {
   INITIAL_SCORE: 20,
-  MAX_ROUNDS: 100 * 365,
-  HISTORY_LIMIT: 100 * 365,
+  MAX_ROUNDS: 20,
   MIN_SCORE: 0,
   ACCIDENT_RATE: 0.05 // 每回合事故概率
 };
@@ -48,7 +47,7 @@ let gameState = {
   socketToPlayerId: new Map(), // 新增：存储socket.id到玩家ID的映射
   globalRewards: {
     cooperate: -1, // 合作扣分
-    betray: 3, // 背叛得分
+    betray: 3, // 欺骗得分
     bothCooperate: 2, // 共赢得分
     bothBetray: 0 // 双输得分
   },
@@ -259,10 +258,10 @@ io.on('connection', (socket) => {
       player.totalGames++;
 
       // 重置游戏状态
-      // player.currentRound = 0;
-      // player.score = GAME_CONFIG.INITIAL_SCORE;
-      // player.history = [];
-      // player.currentChoice = null;
+      player.currentRound = 0;
+      player.score = GAME_CONFIG.INITIAL_SCORE;
+      player.history = [];
+      player.currentChoice = null;
 
       // 更新Redis
       await updatePlayerRedisData(playerId, player);
@@ -313,9 +312,8 @@ io.on('connection', (socket) => {
         socket.emit('error', { message: '未找到对手' });
         return;
       }
-
       // 检查是否发生事故,如果发生事故，选择取反
-      if (Math.random() < gameState.ACCIDENT_RATE) {
+      if (Math.random() < GAME_CONFIG.ACCIDENT_RATE) {
         choice = choice === 'cooperate' ? 'betray' : 'cooperate';
         socket.emit('accident', { message: '发生事故，你做了相反的选择' });
       }
@@ -329,9 +327,6 @@ io.on('connection', (socket) => {
         timestamp: new Date().toISOString(),
         rewards: { ...gameState.globalRewards }
       });
-      if (player.history.length > GAME_CONFIG.HISTORY_LIMIT) {
-        player.history.shift();
-      }
 
       // 更新Redis
       await updatePlayerRedisData(playerId, player);
@@ -743,7 +738,7 @@ function checkGameEnd(playerId) {
 
     // 更新玩家数据和Redis，但不删除玩家数据
     player.currentRound = 0;
-    player.history = [];
+    // player.history = [];
     player.currentChoice = null;
 
     // 最终分数保持不变，确保保存到Redis

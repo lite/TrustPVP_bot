@@ -298,9 +298,9 @@
                 <p><strong>奖励机制:</strong></p>
                 <ul>
                     <li>双方合作各得: <span id="both-cooperate">-</span> 分</li>
-                    <li>双方背叛各得: <span id="both-betray">-</span> 分</li>
+                    <li>双方欺骗各得: <span id="both-betray">-</span> 分</li>
                     <li>合作方失去: <span id="cooperate">-</span> 分</li>
-                    <li>背叛方得到: <span id="betray">-</span> 分</li>
+                    <li>欺骗方得到: <span id="betray">-</span> 分</li>
                 </ul>
             </div>
         </div>
@@ -318,7 +318,7 @@
                 
                 <div class="buttons">
                     <button id="cooperate-button" class="cooperate" disabled>选择合作</button>
-                    <button id="betray-button" class="betray" disabled>选择背叛</button>
+                    <button id="betray-button" class="betray" disabled>选择欺骗</button>
                 </div>
                 
                 <div id="opponent-analysis" class="opponent-analysis" style="display: none;">
@@ -329,7 +329,7 @@
                             <div id="cooperation-rate" class="analysis-value color-cooperation">-</div>
                         </div>
                         <div class="analysis-item">
-                            <div class="analysis-title">背叛率</div>
+                            <div class="analysis-title">欺骗率</div>
                             <div id="betrayal-rate" class="analysis-value color-betrayal">-</div>
                         </div>
                         <div class="analysis-item">
@@ -337,7 +337,7 @@
                             <div id="max-cooperation-streak" class="analysis-value">-</div>
                         </div>
                         <div class="analysis-item">
-                            <div class="analysis-title">连续背叛最长</div>
+                            <div class="analysis-title">连续欺骗最长</div>
                             <div id="max-betrayal-streak" class="analysis-value">-</div>
                         </div>
                         <div class="analysis-item" style="grid-column: span 2;">
@@ -348,7 +348,7 @@
                                     <div id="reward-both-cooperate" class="analysis-value" style="font-size: 16px;">-</div>
                                 </div>
                                 <div style="flex: 1;">
-                                    <div style="font-size: 12px; color: #666;">双方背叛各得</div>
+                                    <div style="font-size: 12px; color: #666;">双方欺骗各得</div>
                                     <div id="reward-both-betray" class="analysis-value" style="font-size: 16px;">-</div>
                                 </div>
                                 <div style="flex: 1;">
@@ -356,7 +356,7 @@
                                     <div id="reward-cooperate" class="analysis-value" style="font-size: 16px;">-</div>
                                 </div>
                                 <div style="flex: 1;">
-                                    <div style="font-size: 12px; color: #666;">背叛方获得</div>
+                                    <div style="font-size: 12px; color: #666;">欺骗方获得</div>
                                     <div id="reward-betray" class="analysis-value" style="font-size: 16px;">-</div>
                                 </div>
                             </div>
@@ -381,9 +381,9 @@
                                     <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">选择</th>
                                     <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">分数</th>
                                     <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">合作各得</th>
-                                    <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">背叛各得</th>
+                                    <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">欺骗各得</th>
                                     <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">合作方损失</th>
-                                    <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">背叛方获得</th>
+                                    <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">欺骗方获得</th>
                                     <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">时间</th>
                                 </tr>
                             </thead>
@@ -421,21 +421,21 @@
                         <div id="trend-cc-value" style="margin-left: 8px;">0%</div>
                     </div>
                     <div class="trend-item">
-                        <div class="trend-label">对手背叛后改为合作</div>
+                        <div class="trend-label">对手欺骗后改为合作</div>
                         <div class="trend-bar-container">
                             <div id="trend-bc" class="trend-bar" style="width: 0%"></div>
                         </div>
                         <div id="trend-bc-value" style="margin-left: 8px;">0%</div>
                     </div>
                     <div class="trend-item">
-                        <div class="trend-label">对手合作后改为背叛</div>
+                        <div class="trend-label">对手合作后改为欺骗</div>
                         <div class="trend-bar-container">
                             <div id="trend-cb" class="trend-bar" style="width: 0%"></div>
                         </div>
                         <div id="trend-cb-value" style="margin-left: 8px;">0%</div>
                     </div>
                     <div class="trend-item">
-                        <div class="trend-label">对手背叛后继续背叛</div>
+                        <div class="trend-label">对手欺骗后继续欺骗</div>
                         <div class="trend-bar-container">
                             <div id="trend-bb" class="trend-bar" style="width: 0%"></div>
                         </div>
@@ -811,7 +811,7 @@
                         gameStatus.textContent = '回合结束，等待匹配新对手';
                         resetGameButtons();
                         
-                        const roundResult = `回合结束: 你${data.score >= 0 ? '获得' : '失去'}了 ${Math.abs(data.score)} 分，对手 ${data.opponentName} 选择了 ${data.opponentChoice === 'cooperate' ? '合作' : '背叛'}`;
+                        const roundResult = `回合结束: 你${data.score >= 0 ? '获得' : '失去'}了 ${Math.abs(data.score)} 分，对手 ${data.opponentName} 选择了 ${data.opponentChoice === 'cooperate' ? '合作' : '欺骗'}`;
                         addHistoryItem('游戏', roundResult);
                         
                         // 重置对手
@@ -924,15 +924,15 @@
             }
         });
         
-        // 选择背叛
+        // 选择欺骗
         betrayButton.addEventListener('click', function() {
             if (socket && gameInProgress) {
                 socket.emit('makeChoice', 'betray');
                 cooperateButton.disabled = true;
                 betrayButton.disabled = true;
-                gameStatus.textContent = '已选择背叛，等待结果';
+                gameStatus.textContent = '已选择欺骗，等待结果';
                 
-                addHistoryItem('玩家', '你选择了背叛');
+                addHistoryItem('玩家', '你选择了欺骗');
             }
         });
         
@@ -1058,7 +1058,7 @@
                 return null;
             }).filter(choice => choice !== null);
             
-            // 统计合作和背叛数
+            // 统计合作和欺骗数
             behaviorsSimple.forEach(choice => {
                 if (choice === 'c') {
                     cooperateCount++;
@@ -1079,7 +1079,7 @@
                 }
             });
             
-            // 计算合作率和背叛率
+            // 计算合作率和欺骗率
             const total = cooperateCount + betrayCount;
             const cooperationRate = total > 0 ? (cooperateCount / total * 100).toFixed(1) : 0;
             const betrayalRate = total > 0 ? (betrayCount / total * 100).toFixed(1) : 0;
@@ -1092,9 +1092,9 @@
             
             // 2. 分析行为模式
             let ccCount = 0; // 合作后继续合作
-            let cbCount = 0; // 合作后改为背叛
-            let bcCount = 0; // 背叛后改为合作
-            let bbCount = 0; // 背叛后继续背叛
+            let cbCount = 0; // 合作后改为欺骗
+            let bcCount = 0; // 欺骗后改为合作
+            let bbCount = 0; // 欺骗后继续欺骗
             
             let afterCooperateCount = 0;
             let afterBetrayCount = 0;
@@ -1171,7 +1171,7 @@
                 bar.style.height = `${containerHeight - 40}px`;
                 
                 // 添加鼠标悬停提示
-                bar.title = `行为 ${index + 1}: ${behavior === 'c' ? '合作' : '背叛'}`;
+                bar.title = `行为 ${index + 1}: ${behavior === 'c' ? '合作' : '欺骗'}`;
                 
                 chartContainer.appendChild(bar);
             });
@@ -1230,7 +1230,7 @@
                     <td style="padding: 6px; border-bottom: 1px solid #eee;">${item.round || index + 1}</td>
                     <td style="padding: 6px; border-bottom: 1px solid #eee;">
                         <span style="color: ${item.choice === 'cooperate' ? '#4CAF50' : '#F44336'};">
-                            ${item.choice === 'cooperate' ? '合作' : '背叛'}
+                            ${item.choice === 'cooperate' ? '合作' : '欺骗'}
                         </span>
                     </td>
                     <td style="padding: 6px; border-bottom: 1px solid #eee;">${item.score || '-'}</td>
@@ -1293,7 +1293,7 @@
             window.choiceChart = new Chart(canvas, {
                 type: 'pie',
                 data: {
-                    labels: ['合作', '背叛'],
+                    labels: ['合作', '欺骗'],
                     datasets: [{
                         data: [cooperateCount, betrayCount],
                         backgroundColor: ['#4CAF50', '#F44336'],
@@ -1350,7 +1350,7 @@
                             tension: 0.1
                         },
                         {
-                            label: '双方背叛各得',
+                            label: '双方欺骗各得',
                             data: bothBetrayValues,
                             borderColor: '#F44336',
                             backgroundColor: 'rgba(244, 67, 54, 0.1)',
@@ -1364,7 +1364,7 @@
                             tension: 0.1
                         },
                         {
-                            label: '背叛方获得',
+                            label: '欺骗方获得',
                             data: betrayValues,
                             borderColor: '#FF9800',
                             backgroundColor: 'rgba(255, 152, 0, 0.1)',
@@ -1401,7 +1401,7 @@
                 const item = history[i];
                 const rewards = item.rewards;
                 
-                // 计算背叛收益与合作收益比例
+                // 计算欺骗收益与合作收益比例
                 const ratio = rewards.betray / rewards.bothCooperate;
                 
                 data.push({
@@ -1428,7 +1428,7 @@
                     labels: rounds,
                     datasets: [
                         {
-                            label: '背叛/合作收益比',
+                            label: '欺骗/合作收益比',
                             data: ratios,
                             backgroundColor: 'rgba(33, 150, 243, 0.5)',
                             borderColor: 'rgba(33, 150, 243, 1)',
@@ -1436,7 +1436,7 @@
                             yAxisID: 'y'
                         },
                         {
-                            label: '选择（1=合作，0=背叛）',
+                            label: '选择（1=合作，0=欺骗）',
                             data: choices,
                             type: 'line',
                             backgroundColor: 'rgba(255, 99, 132, 0.2)',
@@ -1458,7 +1458,7 @@
                             position: 'left',
                             title: {
                                 display: true,
-                                text: '背叛/合作收益比'
+                                text: '欺骗/合作收益比'
                             }
                         },
                         y1: {
