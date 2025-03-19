@@ -122,12 +122,12 @@ npm run dev
    - 匹配到对手后，选择"合作"或"背叛"
    - 根据双方选择，系统分配相应分数：
      - 双方合作：各得2分
-     - 双方背叛：各得1分
-     - 一方合作一方背叛：合作方失去3分，背叛方得到5分
+     - 双方背叛：各得0分
+     - 一方合作一方背叛：合作方失去1分，背叛方得到3分
 
 3. **结束条件**：
    - 玩家分数归零
-   - 达到最大回合数（100轮）
+   - 达到最大回合数（365100轮）
 
 ## API文档
 
@@ -152,10 +152,11 @@ npm run dev
 
 ```javascript
 const GAME_CONFIG = {
-  INITIAL_SCORE: 100,   // 初始分数
-  MAX_ROUNDS: 100,      // 最大回合数
-  HISTORY_LIMIT: 100,   // 历史记录限制
-  MIN_SCORE: 0          // 最低分数
+  INITIAL_SCORE: 1000,   // 初始分数
+  MAX_ROUNDS: 100 * 365,      // 最大回合数
+  HISTORY_LIMIT: 100 * 365,   // 历史记录限制
+  MIN_SCORE: 0,          // 最低分数
+  ACCIDENT_RATE: 0.05 // 每回合事故概率,如果出现事故则选择相反的动作
 };
 ```
 
@@ -163,10 +164,10 @@ const GAME_CONFIG = {
 
 ```javascript
 globalRewards: {
-  cooperate: 3,        // 合作方失去的分数
-  betray: 5,           // 背叛方获得的分数
+  cooperate: -1,        // 合作方失去的分数
+  betray: 3,           // 背叛方获得的分数
   bothCooperate: 2,    // 双方合作各得的分数
-  bothBetray: 1        // 双方背叛各得的分数
+  bothBetray: 0        // 双方背叛各得的分数
 }
 ```
 
@@ -180,4 +181,4 @@ MIT
 
 ## 作者
 
-[您的名字] 
+[Henry] 
