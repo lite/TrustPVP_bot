@@ -438,7 +438,7 @@ io.on('connection', (socket) => {
 
 function updateGlobalRewards() {
   gameState.temperature += (Math.random() - 0.5) * 2;
-  gameState.temperature = Math.max(Math.min(gameState.temperature, 10), -10);
+  gameState.temperature = Math.max(Math.min(gameState.temperature, 3), -2);
   // 根据温度调整奖励值
   const tempFactor = Math.round(gameState.temperature * 10) / 10; // 取小数点后一位
   gameState.temperature = tempFactor;
