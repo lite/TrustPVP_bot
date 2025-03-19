@@ -773,7 +773,7 @@
                     socket.on('gameJoined', function(data) {
                         playerData = data.playerData;
                         updatePlayerInfo();
-                        updateRewardInfo(data.globalRewards);
+                        // updateRewardInfo(data.globalRewards);
                         
                         joinButton.disabled = true;
                         gameStatus.textContent = '等待匹配';
@@ -785,6 +785,7 @@
                         currentOpponent = data.opponent;
                         gameInProgress = true;
                         
+                        updateRewardInfo(data.currentRewards);
                         opponentId.textContent = currentOpponent;
                         opponentName.textContent = data.opponentName || '未知对手';
                         gameStatus.textContent = '已匹配，请做出选择';

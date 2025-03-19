@@ -33,10 +33,11 @@ const redisClient = Redis.createClient({
 
 // 游戏配置
 const GAME_CONFIG = {
-  INITIAL_SCORE: 100,
-  MAX_ROUNDS: 100,
-  HISTORY_LIMIT: 100,
-  MIN_SCORE: 0
+  INITIAL_SCORE: 1000,
+  MAX_ROUNDS: 100 * 365,
+  HISTORY_LIMIT: 100 * 365,
+  MIN_SCORE: 0,
+  ACCIDENT_RATE: 0.05 // 每回合事故概率
 };
 
 // 游戏状态
@@ -46,11 +47,12 @@ let gameState = {
   matches: new Map(), // 新增：存储当前对战关系
   socketToPlayerId: new Map(), // 新增：存储socket.id到玩家ID的映射
   globalRewards: {
-    cooperate: 3,
-    betray: 5,
-    bothCooperate: 2,
-    bothBetray: 1
-  }
+    cooperate: -1, // 合作扣分
+    betray: 3, // 背叛得分
+    bothCooperate: 2, // 共赢得分
+    bothBetray: 0 // 双输得分
+  },
+  temperature: 0
 };
 
 // Redis 连接
@@ -88,19 +90,25 @@ io.engine.on('connection_error', (err) => {
 
 // 定期清理无效连接
 setInterval(() => {
+  // 每分钟随机变化一次温度，波动范围为-10到10，提高接近零的概率
+  updateGlobalRewards();
   console.log('当前活跃连接数:', io.engine.clientsCount);
+  console.log('当前温度:', gameState.temperature);
+  console.log('当前奖励:', gameState.globalRewards);
   // 遍历所有连接，检查它们的状态
   const sockets = io.sockets.sockets;
   for (const [id, socket] of sockets) {
     // 检查最后活动时间
     const lastActiveTime = socket.handshake.issued;
     const inactiveTime = Date.now() - lastActiveTime;
-    if (inactiveTime > 5 * 60 * 1000) { // 5分钟无活动
+    if (inactiveTime > 5 * 60 * 1000) { // 30秒无活动
       console.log(`强制断开不活跃的连接: ${id}, 不活跃时间: ${inactiveTime / 1000}秒`);
       socket.disconnect(true);
     }
   }
-}, 60000); // 每分钟检查一次
+
+
+}, 3000); // 每3秒检查一次
 
 // Socket.IO 事件处理
 io.on('connection', (socket) => {
@@ -262,7 +270,7 @@ io.on('connection', (socket) => {
       // 发送游戏加入确认
       socket.emit('gameJoined', {
         playerData: player,
-        globalRewards: gameState.globalRewards
+        // globalRewards: gameState.globalRewards
       });
 
       // 添加到等待队列
@@ -304,6 +312,12 @@ io.on('connection', (socket) => {
       if (!opponentId) {
         socket.emit('error', { message: '未找到对手' });
         return;
+      }
+
+      // 检查是否发生事故,如果发生事故，选择取反
+      if (Math.random() < gameState.ACCIDENT_RATE) {
+        choice = choice === 'cooperate' ? 'betray' : 'cooperate';
+        socket.emit('accident', { message: '发生事故，你做了相反的选择' });
       }
 
       // 更新选择
@@ -422,6 +436,20 @@ io.on('connection', (socket) => {
   });
 });
 
+function updateGlobalRewards() {
+  gameState.temperature += (Math.random() - 0.5) * 2;
+  gameState.temperature = Math.max(Math.min(gameState.temperature, 10), -10);
+  // 根据温度调整奖励值
+  const tempFactor = Math.round(gameState.temperature * 10) / 10; // 取小数点后一位
+  gameState.temperature = tempFactor;
+  gameState.globalRewards.cooperate = Math.round((-1 + tempFactor));
+  gameState.globalRewards.betray = Math.round((3 + tempFactor));
+  gameState.globalRewards.bothCooperate = Math.round((2 + tempFactor));
+  gameState.globalRewards.bothBetray = Math.round((0 + tempFactor));
+
+
+}
+
 // 通过玩家ID查找Socket ID
 function findSocketByPlayerId(playerId) {
   for (const [socketId, id] of gameState.socketToPlayerId.entries()) {
@@ -525,6 +553,8 @@ function matchPlayers() {
     // 建立匹配关系
     gameState.matches.set(player1Id, player2Id);
     gameState.matches.set(player2Id, player1Id);
+    player1.currentRewards = { ...gameState.globalRewards };
+    player2.currentRewards = { ...gameState.globalRewards };
 
     // 重置选择
     player1.currentChoice = null;
@@ -539,13 +569,15 @@ function matchPlayers() {
       io.to(socket1Id).emit('matchFound', {
         opponent: player2Id,
         opponentName: player2.name,
-        opponentHistory: player2.history.sort((a, b) => a.round - b.round).slice(-100).reverse()
+        opponentHistory: player2.history.sort((a, b) => a.round - b.round).slice(-100).reverse(),
+        currentRewards: player2.currentRewards
       });
 
       io.to(socket2Id).emit('matchFound', {
         opponent: player1Id,
         opponentName: player1.name,
-        opponentHistory: player1.history.sort((a, b) => a.round - b.round).slice(-100).reverse()
+        opponentHistory: player1.history.sort((a, b) => a.round - b.round).slice(-100).reverse(),
+        currentRewards: player1.currentRewards
       });
 
       console.log(`匹配成功: ${player1.name} (${player1Id}) 和 ${player2.name} (${player2Id})`);
@@ -586,7 +618,7 @@ function checkMatchCompletion(player1Id, player2Id) {
     console.log(`回合完成: ${player1.name} (${player1Id}) 选择了 ${player1.currentChoice}, ${player2.name} (${player2Id}) 选择了 ${player2.currentChoice}`);
 
     // 计算得分
-    const scores = calculateScores(player1.currentChoice, player2.currentChoice);
+    const scores = calculateScores(player1.currentChoice, player2.currentChoice, player1.currentRewards);
 
     // 更新玩家分数
     player1.score += scores.player1;
@@ -673,17 +705,17 @@ async function updatePlayerRedisData(playerId, player) {
 }
 
 // 计算得分
-function calculateScores(choice1, choice2) {
-  const { bothCooperate, bothBetray, cooperate, betray } = gameState.globalRewards;
+function calculateScores(choice1, choice2, currentRewards) {
+  const { bothCooperate, bothBetray, cooperate, betray } = currentRewards;
 
   if (choice1 === 'cooperate' && choice2 === 'cooperate') {
     return { player1: bothCooperate, player2: bothCooperate };
   } else if (choice1 === 'betray' && choice2 === 'betray') {
     return { player1: bothBetray, player2: bothBetray };
   } else if (choice1 === 'cooperate' && choice2 === 'betray') {
-    return { player1: -cooperate, player2: betray };
+    return { player1: cooperate, player2: betray };
   } else {
-    return { player1: betray, player2: -cooperate };
+    return { player1: betray, player2: cooperate };
   }
 }
 
