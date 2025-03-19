@@ -619,7 +619,7 @@
         connectButton.addEventListener('click', function() {
             if (!socket) {
                 try {
-                    socket = io('http://localhost:3000', {
+                    socket = io(window.location.origin, {
                         transports: ['websocket'], // 强制使用WebSocket
                         upgrade: false, // 禁止协议升级
                         reconnectionAttempts: 5, // 重连次数
