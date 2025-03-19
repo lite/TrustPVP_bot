@@ -23,45 +23,94 @@
 - **通信**：Socket.IO (WebSocket)
 - **数据存储**：Redis
 
-## 安装和运行
+## 使用 Docker 运行
+
+本项目支持使用 Docker 和 Docker Compose 快速部署和运行。
+
+### 前提条件
+
+- 安装 [Docker](https://docs.docker.com/get-docker/)
+- 安装 [Docker Compose](https://docs.docker.com/compose/install/)
+
+### 生产环境启动
+
+使用以下命令启动生产环境：
+
+```bash
+# 使用脚本启动
+./start.sh
+
+# 或者手动执行
+docker-compose up -d
+```
+
+### 开发环境启动
+
+开发环境启用了热重载功能，方便开发调试：
+
+```bash
+# 使用脚本启动
+./dev.sh
+
+# 或者手动执行
+docker-compose -f docker-compose.dev.yml up -d
+```
+
+### 查看日志
+
+```bash
+# 生产环境日志
+docker-compose logs -f app
+
+# 开发环境日志
+docker-compose -f docker-compose.dev.yml logs -f app
+```
+
+### 停止系统
+
+```bash
+# 停止生产环境
+docker-compose down
+
+# 停止开发环境
+docker-compose -f docker-compose.dev.yml down
+```
+
+## 不使用 Docker 运行
+
+如果您不想使用 Docker，也可以直接在本地运行：
 
 ### 前提条件
 
 - Node.js v14.x 或更高版本
-- Redis服务器
+- Redis 服务器
 
 ### 安装步骤
 
-1. 克隆代码库：
-```bash
-git clone https://github.com/yourusername/trust-evolution-game.git
-cd trust-evolution-game
-```
-
-2. 安装依赖：
+1. 安装依赖：
 ```bash
 npm install
 ```
 
-3. 配置环境变量：
-创建`.env`文件并添加以下内容：
-```
-PORT=3000
-REDIS_URL=redis://localhost:6379
-```
+2. 配置环境变量：
+编辑 `.env` 文件并设置 Redis 连接和端口号。
 
-4. 启动Redis服务器：
+3. 启动 Redis：
 ```bash
 redis-server
 ```
 
-5. 启动游戏服务器：
+4. 启动应用：
 ```bash
-node index.js
+# 生产环境
+npm start
+
+# 开发环境
+npm run dev
 ```
 
-6. 访问游戏：
-在浏览器中打开 `http://localhost:3000`
+5. 访问应用：
+打开浏览器访问 `http://localhost:3000`
 
 ## 游戏规则
 

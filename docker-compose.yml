@@ -1,0 +1,40 @@
+
+services:
+  # Node.js应用服务
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trustpvp-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    depends_on:
+      - redis
+    networks:
+      - trustpvp-network
+
+  # Redis数据库服务
+  redis:
+    image: redis:alpine
+    container_name: trustpvp-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - trustpvp-network
+
+networks:
+  trustpvp-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+    driver: local 
