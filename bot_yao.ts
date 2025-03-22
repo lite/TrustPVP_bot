@@ -18,6 +18,20 @@ class TrustPVPClient {
   private roundCounter: Map<string, number> = new Map();
   private maxRounds: number = MAX_ROUND;
   
+  // 新增：连续行为跟踪
+  private consecutiveCooperate: Map<string, number> = new Map();
+  private consecutiveBetray: Map<string, number> = new Map();
+  // 新增：对手类型标记
+  private opponentType: Map<string, string> = new Map(); // 'kind', 'hostile', 'neutral'
+  // 新增：收益跟踪
+  private playerScores: Map<string, number> = new Map();
+  private opponentScores: Map<string, number> = new Map();
+  // 新增：宽容概率基础值
+  private baseForgivenessProbability: number = 0.2;
+  
+  // 新增：错误概率 - 模拟人类犯错
+  private errorProbability: number = 0.05;
+  
   constructor(serverUrl: string, playerName: string) {
     this.playerName = playerName;
     
@@ -65,7 +79,7 @@ class TrustPVPClient {
     this.socket.on('loginSuccess', (data: { playerData: any, isNewPlayer: boolean }) => {
       console.log('登录成功', data.isNewPlayer ? '(新玩家)' : '(老玩家)');
       this.playerId = data.playerData.id;
-      // this.joinGame();
+      
     });
 
     this.socket.on('gameJoined', (data: { playerData: any, globalRewards: any }) => {
@@ -97,7 +111,8 @@ class TrustPVPClient {
       totalScore: number, 
       opponentChoice: string, 
       opponentName: string,
-      opponent?: string // 添加对手ID参数，如果API返回的数据中包含
+      opponent?: string,
+      opponentScore?: number // 添加对手得分参数，如果API返回的数据中包含
     }) => {
       console.log(`回合结束 - 得分: ${data.score}, 总分: ${data.totalScore}`);
       console.log(`对手 ${data.opponentName} 选择了: ${data.opponentChoice === 'cooperate' ? '合作' : '背叛'}`);
@@ -108,6 +123,10 @@ class TrustPVPClient {
       if (opponentId) {
         this.recordOpponentChoice(opponentId, data.opponentChoice);
         console.log(`已记录对手选择: ID=${opponentId}, 选择=${data.opponentChoice}`);
+        
+        // 更新得分记录
+        const opponentScore = data.opponentScore || 0; // 如果API没有提供对手得分，假设为0
+        this.updateScores(opponentId, data.score, opponentScore);
         
         // 增加回合计数
         const currentRound = this.roundCounter.get(opponentId) || 1;
@@ -127,7 +146,7 @@ class TrustPVPClient {
       console.log('游戏结束:', data.message);
       console.log(`最终得分: ${data.finalScore}, 总回合数: ${data.rounds}`);
       this.isInGame = false;
-
+      
       // 游戏结束后使用新用户名重新登录并加入游戏
       console.log('游戏已结束，将使用新用户名重新加入游戏');
       
@@ -157,19 +176,18 @@ class TrustPVPClient {
   }
 
   private login(): void {
-   // 生成随机时间戳后缀，确保总长度不超过15个字符
-   const timestamp = Date.now() % 10000;  // 只取时间戳的后4位数字
-   const randomSuffix = Math.floor(Math.random() * 100);  // 只使用2位随机数
-   
-   // 计算可用于原始用户名的最大长度
-   const maxNameLength = 20 - (`_${timestamp}_${randomSuffix}`.length);
-   
-   // 如果原始用户名过长，则截断
-   const baseName = this.playerName.substring(0, maxNameLength);
-   const playerNameWithTimestamp = `${baseName}_${timestamp}_${randomSuffix}`;
-   
-   console.log(`尝试登录，使用临时用户名: ${playerNameWithTimestamp}...`);
-
+    // 生成随机时间戳后缀，确保总长度不超过15个字符
+    const timestamp = Date.now() % 10000;  // 只取时间戳的后4位数字
+    const randomSuffix = Math.floor(Math.random() * 100);  // 只使用2位随机数
+    
+    // 计算可用于原始用户名的最大长度
+    const maxNameLength = 20 - (`_${timestamp}_${randomSuffix}`.length);
+    
+    // 如果原始用户名过长，则截断
+    const baseName = this.playerName.substring(0, maxNameLength);
+    const playerNameWithTimestamp = `${baseName}_${timestamp}_${randomSuffix}`;
+    
+    console.log(`尝试登录，使用临时用户名: ${playerNameWithTimestamp}...`);
     const loginData = this.playerId 
       ? { playerName: playerNameWithTimestamp, playerId: this.playerId }
       : { playerName: playerNameWithTimestamp };
@@ -179,7 +197,7 @@ class TrustPVPClient {
 
   public joinGame(): void {
     if (!this.isInGame) {
-      this.login();
+      this.login(); 
 
       // 延迟一小段时间后再加入游戏，确保登录请求已处理
       setTimeout(() => {
@@ -192,6 +210,14 @@ class TrustPVPClient {
   private recordOpponentChoice(opponentId: string, choice: string): void {
     if (!this.opponentHistory.has(opponentId)) {
       this.opponentHistory.set(opponentId, []);
+      // 初始化连续行为计数器
+      this.consecutiveCooperate.set(opponentId, 0);
+      this.consecutiveBetray.set(opponentId, 0);
+      // 初始化对手类型为中立
+      this.opponentType.set(opponentId, 'neutral');
+      // 初始化分数记录
+      this.playerScores.set(opponentId, 0);
+      this.opponentScores.set(opponentId, 0);
     }
     
     const history = this.opponentHistory.get(opponentId);
@@ -202,104 +228,86 @@ class TrustPVPClient {
       if (history.length > 20) {
         history.shift();
       }
+      
+      // 更新连续行为计数
+      if (choice === 'cooperate') {
+        this.consecutiveCooperate.set(opponentId, (this.consecutiveCooperate.get(opponentId) || 0) + 1);
+        this.consecutiveBetray.set(opponentId, 0);
+        
+        // 检查是否达到善良玩家标准（连续合作≥5次）
+        if ((this.consecutiveCooperate.get(opponentId) || 0) >= 5) {
+          this.opponentType.set(opponentId, 'kind');
+          console.log(`对手 ${opponentId} 被标记为善良玩家（连续合作${this.consecutiveCooperate.get(opponentId)}次）`);
+        }
+      } else if (choice === 'betray') {
+        this.consecutiveBetray.set(opponentId, (this.consecutiveBetray.get(opponentId) || 0) + 1);
+        this.consecutiveCooperate.set(opponentId, 0);
+        
+        // 检查是否达到恶意玩家标准（连续背叛≥3次）
+        if ((this.consecutiveBetray.get(opponentId) || 0) >= 3) {
+          this.opponentType.set(opponentId, 'hostile');
+          console.log(`对手 ${opponentId} 被标记为恶意玩家（连续背叛${this.consecutiveBetray.get(opponentId)}次）`);
+        }
+      }
     }
   }
 
   // 分析对手行为并决定策略
   private decideStrategy(opponentId: string): 'cooperate' | 'betray' {
-    // 检查是否是最后一个回合
     const currentRound = this.roundCounter.get(opponentId) || 1;
-    if (currentRound >= this.maxRounds) {
-      console.log(`已达到最大回合数(${this.maxRounds})，最后一回合选择背叛策略`);
-      return 'betray';
-    }
-    
     const history = this.opponentHistory.get(opponentId);
+    const opponentType = this.opponentType.get(opponentId) || 'neutral';
     
-    // 如果没有历史记录或记录太少，默认选择 Betray
-    if (!history || history.length < 2) {
-      console.log(`对手 ${opponentId} 历史记录不足(${history?.length || 0}条)，选择合作策略`);
-      return 'betray';
+    console.log(`当前回合: ${currentRound}, 对手类型: ${opponentType}`);
+    
+    // 1. 第一回合默认合作
+    if (!history || history.length === 0) {
+      console.log(`第一回合，选择合作策略建立信任`);
+      return 'cooperate';
     }
     
-    // 打印完整历史记录用于调试
-    console.log(`对手 ${opponentId} 完整历史: [${history.join(', ')}]`);
+    // 2. 计算对手的背叛率和合作率
+    const betrayRate = history.filter(choice => choice === 'betray').length / history.length;
+    const cooperateRate = history.filter(choice => choice === 'cooperate').length / history.length;
     
-    let cooperateAfterCooperate = 0;
-    let cooperateAfterBetray = 0;
-    let betrayAfterBetray = 0;    // 新增：背叛后继续背叛的次数
-    let betrayAfterCooperate = 0; // 新增：合作后改为背叛的次数
-    let totalAfterCooperate = 0;
-    let totalAfterBetray = 0;
+    console.log(`对手行为分析 - 背叛率: ${(betrayRate * 100).toFixed(2)}%, 合作率: ${(cooperateRate * 100).toFixed(2)}%`);
     
-    // 分析对手在不同情况下的行为模式
-    for (let i = 1; i < history.length; i++) {
-      const previousChoice = history[i-1];
-      const currentChoice = history[i];
-      
-      if (previousChoice === 'cooperate') {
-        totalAfterCooperate++;
-        if (currentChoice === 'cooperate') {
-          cooperateAfterCooperate++;
-        } else if (currentChoice === 'betray') {
-          betrayAfterCooperate++; // 新增：记录合作后改为背叛的次数
-        }
-      } else if (previousChoice === 'betray') {
-        totalAfterBetray++;
-        if (currentChoice === 'cooperate') {
-          cooperateAfterBetray++;
-        } else if (currentChoice === 'betray') {
-          betrayAfterBetray++;    // 新增：记录背叛后继续背叛的次数
-        }
-      }
+    // 3. 根据对手的背叛率决定策略
+    let choice: 'cooperate' | 'betray';
+    
+    if (betrayRate > 0.5) {
+      console.log(`对手背叛率超过50%，选择背叛策略`);
+      choice = 'betray';
+    } else {
+      console.log(`对手背叛率低于50%，选择合作策略`);
+      choice = 'cooperate';
     }
     
-    // 计算对手在合作后继续合作的概率
-    const cooperateAfterCooperateRate = totalAfterCooperate > 0 
-      ? cooperateAfterCooperate / totalAfterCooperate 
-      : 0;
-    
-    // 计算对手在背叛后改为合作的概率
-    const cooperateAfterBetrayRate = totalAfterBetray > 0 
-      ? cooperateAfterBetray / totalAfterBetray 
-      : 0;
-    
-    // 新增：计算对手在背叛后继续背叛的概率
-    const betrayAfterBetrayRate = totalAfterBetray > 0
-      ? betrayAfterBetray / totalAfterBetray
-      : 0;
-      
-    // 新增：计算对手在合作后改为背叛的概率
-    const betrayAfterCooperateRate = totalAfterCooperate > 0
-      ? betrayAfterCooperate / totalAfterCooperate
-      : 0;
-    
-    // 计算总体"善良"概率
-    const kindnessRate = cooperateAfterCooperateRate + cooperateAfterBetrayRate;
-    
-    // 新增：计算总体"背叛"概率
-    const betrayalRate = betrayAfterBetrayRate + betrayAfterCooperateRate;
-    
-    console.log(`对手行为分析 - 合作后继续合作: ${(cooperateAfterCooperateRate * 100).toFixed(2)}%, 背叛后改为合作: ${(cooperateAfterBetrayRate * 100).toFixed(2)}%`);
-    console.log(`对手行为分析 - 背叛后继续背叛: ${(betrayAfterBetrayRate * 100).toFixed(2)}%, 合作后改为背叛: ${(betrayAfterCooperateRate * 100).toFixed(2)}%`);
-    console.log(`对手总体善良概率: ${(kindnessRate * 100).toFixed(2)}%, 总体背叛概率: ${(betrayalRate * 100).toFixed(2)}%`);
-    
-    // 如果对手很可能合作，选择背叛以获取最大收益
-    if (kindnessRate > 0.8) {
-      console.log('对手很可能合作，选择背叛策略');
-      return 'betray';
-    } 
-    // 新增：如果对手很可能背叛，也选择背叛
-    else if (betrayalRate > 0.8) {
-      console.log('对手很可能背叛，选择背叛策略');
-      return 'betray';
+    // 4. 终局效应：最后两回合选择背叛
+    if (currentRound >= this.maxRounds - 1) {
+      console.log(`接近游戏结束(回合${currentRound}/${this.maxRounds})，选择背叛策略`);
+      choice = 'betray';
     }
-    else {
-      // 对手行为不确定时，使用复读机策略（模仿对手上一次的选择）
-      const lastChoice = history[history.length - 1];
-      console.log(`对手行为不确定，使用复读机策略，模仿对手上一次的选择: ${lastChoice}`);
-      return lastChoice as 'cooperate' | 'betray';
+    
+    // 5. 模拟犯错概率
+    if (Math.random() < this.errorProbability) {
+      const originalChoice = choice;
+      choice = choice === 'cooperate' ? 'betray' : 'cooperate';
+      console.log(`触发随机犯错机制(${this.errorProbability * 100}%)，原选择: ${originalChoice}，现选择: ${choice}`);
     }
+    
+    return choice;
+  }
+
+  // 更新得分记录
+  private updateScores(opponentId: string, playerScore: number, opponentScore: number): void {
+    const currentPlayerScore = this.playerScores.get(opponentId) || 0;
+    const currentOpponentScore = this.opponentScores.get(opponentId) || 0;
+    
+    this.playerScores.set(opponentId, currentPlayerScore + playerScore);
+    this.opponentScores.set(opponentId, currentOpponentScore + opponentScore);
+    
+    console.log(`得分更新 - 玩家: ${this.playerScores.get(opponentId)}, 对手: ${this.opponentScores.get(opponentId)}`);
   }
 
   private makeChoice(choice: 'cooperate' | 'betray'): void {
@@ -331,7 +339,7 @@ class TrustPVPClient {
 // 使用示例
 // const serverUrl = 'http://localhost:3000'; // 替换为实际服务器地址
 const serverUrl = 'http://118.123.202.87:13001'; // 替换为实际服务器地址
-const playerName = 'duan'; // 替换为你想要的玩家名称
+const playerName = 'old_yao_1 '; // 替换为你想要的玩家名称
 
 const client = new TrustPVPClient(serverUrl, playerName);
 
