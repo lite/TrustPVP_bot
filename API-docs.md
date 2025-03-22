@@ -73,9 +73,9 @@ const io = new Server(httpServer, {
 ```javascript
 {
   cooperate: Number,    // 合作方损失
-  betray: Number,       // 欺骗方获得
+  betray: Number,       // 背叛方获得
   bothCooperate: Number, // 双方合作各得
-  bothBetray: Number    // 双方欺骗各得
+  bothBetray: Number    // 双方背叛各得
 }
 ```
 
