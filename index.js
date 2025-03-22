@@ -100,7 +100,7 @@ setInterval(() => {
     // 检查最后活动时间
     const lastActiveTime = socket.handshake.issued;
     const inactiveTime = Date.now() - lastActiveTime;
-    if (inactiveTime > 5 * 60 * 1000) { // 30秒无活动
+    if (inactiveTime > 15 * 60 * 1000) { // 30秒无活动
       console.log(`强制断开不活跃的连接: ${id}, 不活跃时间: ${inactiveTime / 1000}秒`);
       socket.disconnect(true);
     }
@@ -257,11 +257,18 @@ io.on('connection', (socket) => {
       // 更新游戏总数
       player.totalGames++;
 
+      // 更新最高得分,最高得分历史
+      if (player.maxScore < player.score) {
+        player.maxScore = player.score;
+        player.maxHistory = player.history;
+      }
+
       // 重置游戏状态
       player.currentRound = 0;
       player.score = GAME_CONFIG.INITIAL_SCORE;
       player.history = [];
       player.currentChoice = null;
+
 
       // 更新Redis
       await updatePlayerRedisData(playerId, player);
@@ -405,7 +412,7 @@ io.on('connection', (socket) => {
   // 获取排行榜
   socket.on('getLeaderboard', async () => {
     try {
-      const leaderboard = await getTopPlayers(10);
+      const leaderboard = await getTopPlayers(50);
       socket.emit('leaderboardData', { leaderboard });
     } catch (err) {
       console.error('获取排行榜错误:', err);
@@ -477,6 +484,7 @@ async function getTopPlayers(limit = 10) {
           id: playerData.id || playerId, // 优先使用存储的ID，否则使用key中的ID
           name: playerData.name,
           score: parseInt(playerData.score),
+          maxScore: parseInt(playerData.maxScore || '0'),
           currentRound: parseInt(playerData.currentRound || '0'),
           totalGames: parseInt(playerData.totalGames || '0')
         });

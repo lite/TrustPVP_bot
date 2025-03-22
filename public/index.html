@@ -465,6 +465,7 @@
                                 <th>排名</th>
                                 <th>玩家名称</th>
                                 <th>分数</th>
+                                <th>最高得分</th>
                                 <th>游戏次数</th>
                                 <th>当前回合</th>
                             </tr>
@@ -985,6 +986,7 @@
                     <td>${index + 1}</td>
                     <td>${player.name || '匿名玩家'} ${(player.id && playerData && player.id === playerData.id) ? '(你)' : ''}</td>
                     <td>${player.score}</td>
+                    <td>${player.maxScore}</td>
                     <td>${player.totalGames || 0}</td>
                     <td>${player.currentRound || 0}</td>
                 </tr>
@@ -1006,6 +1008,7 @@
                 <p><strong>玩家名称:</strong> ${stats.name || '匿名玩家'}</p>
                 <p><strong>ID:</strong> ${stats.id || '未知'}</p>
                 <p><strong>当前分数:</strong> ${stats.score || 0}</p>
+                <p><strong>最高得分:</strong> ${stats.maxScore || 0}</p>
                 <p><strong>游戏次数:</strong> ${stats.totalGames || 0}</p>
                 <p><strong>当前回合:</strong> ${stats.currentRound || 0}</p>
                 <p><strong>最后在线:</strong> ${formatDate(stats.lastSeen)}</p>
