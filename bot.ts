@@ -17,7 +17,7 @@ class TrustPVPClient {
   // 添加回合计数器
   private roundCounter: Map<string, number> = new Map();
   private maxRounds: number = MAX_ROUND;
-  currentScore: number;
+  private currentScore: number = 20;
 
   constructor(serverUrl: string, playerName: string) {
     this.playerName = playerName;
@@ -212,17 +212,19 @@ class TrustPVPClient {
 
     return strategy;
   }
-  strategySelection(behaviorPrediction: number, currentScore: number): "cooperate" | "betray" {
+  private strategySelection(behaviorPrediction: number, currentScore: number): "cooperate" | "betray" {
     throw new Error("Method not implemented.");
+    return "cooperate";
   }
-  behaviorPrediction(historyClassify: [number, number], rewardsClassify: number): number {
-    throw new Error("Method not implemented.");
-  }
-  rewardsClassify(rewards: any[]): number {
+  private behaviorPrediction(historyClassify: [number, number], rewardsClassify: number): number {
     throw new Error("Method not implemented.");
     return 0;
   }
-  historyClassify(history: any[]): [number, number] {
+  private rewardsClassify(rewards: any[]): number {
+    throw new Error("Method not implemented.");
+    return 0;
+  }
+  private historyClassify(history: any[]): [number, number] {
     throw new Error("Method not implemented.");
     return [0, 0];
   }

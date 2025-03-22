@@ -98,7 +98,9 @@ setInterval(() => {
   const sockets = io.sockets.sockets;
   for (const [id, socket] of sockets) {
     // 检查最后活动时间
-    const lastActiveTime = socket.handshake.issued;
+    // const lastActiveTime = socket.handshake.issued;
+    const lastActiveTime = socket.lastActiveTime;
+    console.log('lastActiveTime:', lastActiveTime, 'id:', id);
     const inactiveTime = Date.now() - lastActiveTime;
     if (inactiveTime > 15 * 60 * 1000) { // 30秒无活动
       console.log(`强制断开不活跃的连接: ${id}, 不活跃时间: ${inactiveTime / 1000}秒`);
@@ -112,7 +114,7 @@ setInterval(() => {
 // Socket.IO 事件处理
 io.on('connection', (socket) => {
   console.log('新WebSocket连接建立:', socket.id, '传输类型:', socket.conn.transport.name);
-
+  socket.lastActiveTime = Date.now();
   // 设置ping/pong心跳间隔
   if (socket.conn.transport.name === 'websocket') {
     console.log('为WebSocket连接设置心跳检测');
@@ -233,6 +235,7 @@ io.on('connection', (socket) => {
           id: playerId,
           name: redisData.name || '匿名玩家',
           score: parseInt(redisData.score || GAME_CONFIG.INITIAL_SCORE),
+          maxScore: parseInt(redisData.maxScore || GAME_CONFIG.INITIAL_SCORE),
           history: JSON.parse(redisData.history || '[]'),
           currentRound: parseInt(redisData.currentRound || 0),
           currentChoice: redisData.currentChoice || null,
@@ -256,7 +259,7 @@ io.on('connection', (socket) => {
 
       // 更新游戏总数
       player.totalGames++;
-
+      console.log('player.totalGames:', player.totalGames, player.maxScore, player.score);
       // 更新最高得分,最高得分历史
       if (player.maxScore < player.score) {
         player.maxScore = player.score;
@@ -407,6 +410,7 @@ io.on('connection', (socket) => {
     if (callback && typeof callback === 'function') {
       callback();
     }
+    socket.lastActiveTime = Date.now();
   });
 
   // 获取排行榜
